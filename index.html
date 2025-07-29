@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Deepfake Detection</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- TensorFlow.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+    <!-- Scroll Indicator -->
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+
+    <!-- Content Container -->
+    <div class="container">
+        <h1>Deepfake Detection</h1>
+        <p>Upload an image to check if it is a deepfake.</p>
+
+        <form id="uploadForm">
+            <div class="upload-section">
+                <label for="upload" class="upload-label">Choose an Image</label>
+                <input type="file" id="upload" accept="image/*" onchange="processImage(event)">
+            </div>
+            <button type="submit" class="submit-btn">Upload Image</button>
+        </form>
+
+        <!-- Image and Prediction Box -->
+        <div class="output-container">
+            <div class="preview-box">
+                <h3>Uploaded Image</h3>
+                <img id="image-preview" alt="Preview will appear here">
+            </div>
+
+            <div class="prediction-box">
+                <h3>Prediction</h3>
+                <p id="result">Waiting for image upload...</p>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        // Load the model when the page loads
+        let model;
+        async function loadModel() {
+            model = await tf.loadLayersModel('tfjs_model/model.json'); // Update path if needed
+            console.log("Model loaded successfully.");
+        }
+        loadModel();
+
+        // Function to handle image upload and prediction
+        async function processImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Create an image element to load the uploaded file
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+
+            img.onload = async () => {
+                // Resize the image to 224x224 using a canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 224;
+                canvas.height = 224;
+
+                // Draw the image onto the canvas and resize it
+                ctx.drawImage(img, 0, 0, 224, 224);
+
+                // Convert the canvas image to a Tensor for the prediction
+                const tensor = tf.browser.fromPixels(canvas)
+                    .toFloat()
+                    .expandDims();
+
+                // Display the resized image in the image preview box
+                const imgPreview = document.getElementById("image-preview");
+                imgPreview.src = canvas.toDataURL();
+
+                // Make the prediction with the resized image
+                const prediction = model.predict(tensor);
+                displayPrediction(prediction);
+            };
+        }
+
+        // Function to display prediction result
+        function displayPrediction(prediction) {
+            const resultElement = document.getElementById("result");
+            const isFake = prediction.dataSync()[0];
+            resultElement.innerText = isFake > 0.5 ? "Fake Image Detected" : "Real Image Detected";
+        }
+    </script>
+</body>
+</html>
